@@ -1,4 +1,5 @@
 import openpyxl
+from openpyxl.utils.cell import column_index_from_string
 
 from checks import CHECKS
 
@@ -6,22 +7,18 @@ from checks import CHECKS
 ### you can add as many as you have. If you put a simple filename here,
 ### the file needs to be in the same folder as the python script. Alternatively,
 ### you can use the full file path here, like "C:\scripts\blah.xlsx"
-NAMES = ["MyCoolGameScript.xlsx",
+NAMES = ["common.en.xlsx",
          ]
 SHEETS_TO_SKIP = []
 
-JPCOLUMN = 'B'
-TLCOLUMN = 'D'
-EDITCOLUMN = 'E'
+# column_index_from_string is 1-indexed, so we need to subtract 1 from the result
+JP_COLUMN = column_index_from_string('B') - 1
+TL_COLUMN = column_index_from_string('D') - 1
+EDIT_COLUMN = column_index_from_string('E') - 1
+QA_COLUMN = column_index_from_string('F') - 1
 
 def trim_jp_for_BGI_script_commands(jp):
     return jp.strip(".&")
-
-
-# Columns are 1-indexed starting with 'A'
-def calculate_excel_offset_ordinal(column_letter):
-    return ord(column_letter) - ord('A')
-
 
 def format_error_sheet(error_worksheet):
     error_worksheet.title = "Errors"
@@ -76,10 +73,10 @@ def main():
                 continue
             sheet = workbook[sheet_name]
             current_row = MINROW
-            for row in sheet.iter_rows(min_row=MINROW):
-                jp = row[calculate_excel_offset_ordinal(JPCOLUMN)].value
-                tl = row[calculate_excel_offset_ordinal(TLCOLUMN)].value
-                edit = row[calculate_excel_offset_ordinal(EDITCOLUMN)].value
+            for row in sheet.iter_rows(min_row=MINROW, values_only=True):
+                jp = row[JP_COLUMN]
+                tl = row[TL_COLUMN]
+                edit = row[EDIT_COLUMN]
                 check_line(error_worksheet, sheet_name, current_row, jp, tl, edit)
                 current_row += 1
 
