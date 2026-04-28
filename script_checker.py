@@ -6,13 +6,13 @@ from os.path import exists, join
 
 from checks import CHECKS
 
-### There'd better be at least one file here. If you have multiple scripts,
-### you can add as many as you have. If you put a simple filename here,
-### the file needs to be in the same folder as the python script. Alternatively,
-### you can use the full file path here, like "C:\scripts\blah.xlsx"
+# If any tabs in the workbooks should be skipped, add their names to this list
 SHEETS_TO_SKIP = []
 
-# column_index_from_string is 1-indexed, so we need to subtract 1 from the result
+# Set to first non-header row (1-indexed)
+MINROW = 2
+
+# column_index_from_string is 1-indexed, so we subtract 1 from the result
 JP_COLUMN = column_index_from_string('B') - 1
 TL_COLUMN = column_index_from_string('D') - 1
 EDIT_COLUMN = column_index_from_string('E') - 1
@@ -47,8 +47,6 @@ def check_line(error_worksheet, script_name, script_row, jp, tl, edit, qa):
 
 
 def main():
-    MINROW = 2 # skip the first row with the headers
-
     error_workbook = openpyxl.Workbook()
     error_worksheet = error_workbook.active
     format_error_sheet(error_worksheet)
