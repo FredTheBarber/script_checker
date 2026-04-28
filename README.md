@@ -13,8 +13,8 @@ openpyxl: https://pypi.org/project/openpyxl/
 
 # How to run
 First you will need to modify script_checker.py for your scripts' details.
-- Modify the `NAMES` variable in `script_checker.py` to list all the excel workbooks you wish to check. Note that python has to find these files, so either put these python files in the same folder as your scripts, or put the absolute path to the script files in the `NAMES` variable.
-- Modify the `JPCOLUMN`, `TLCOLUMN`, and `EDITCOLUMN` variables in `script_checker.py` to point at the correct columns for your worksheet's format
+- Place all files to be checked in the `sheets` folder. Note that python has to find these files, so running the program from a different folder will likely result in failure.
+- Modify the `JP_COLUMN`, `TL_COLUMN`, `EDIT_COLUMN`, and `QA_COLUMN` variables in `script_checker.py` to point at the correct columns for your worksheet's format
 After you have customized these variables for your scripts, run the tool with:
 
 ```python script_checker.py```
