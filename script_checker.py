@@ -31,32 +31,18 @@ def format_error_sheet(error_worksheet):
     error_worksheet.append(header)
 
 
-def check_line(error_worksheet, script_name, script_row, jp, tl, edit):
+def check_line(error_worksheet, script_name, script_row, jp, tl, edit, qa):
     if jp is None:
-        return
-    
-    if tl is None and edit is None and jp != "":
-        ### THIS ONE IS CHECKED ALREADY
-        ### error_worksheet.append([script_name, script_row, "", "TL and Edit columns both empty?"])
         return
     
     jp = trim_jp_for_BGI_script_commands(jp)
     
-    if tl is None:
-        tl = edit
-    
-    tl = tl.strip()
-    merge_of_tl_and_edit = tl
-    
-    if edit is not None and edit != "":
-        edit = edit.strip()
-        if edit != "":
-            merge_of_tl_and_edit = edit
+    en = qa or edit or tl
     
     for check in CHECKS:
-        error = check(merge_of_tl_and_edit, jp)
+        error = check(en, jp)
         if error is not None:
-            error_row = [script_name, script_row, merge_of_tl_and_edit, error]
+            error_row = [script_name, script_row, en, error]
             error_worksheet.append(error_row)
 
 
@@ -85,7 +71,8 @@ def main():
                 jp = row[JP_COLUMN]
                 tl = row[TL_COLUMN]
                 edit = row[EDIT_COLUMN]
-                check_line(error_worksheet, sheet_name, current_row, jp, tl, edit)
+                qa = row[QA_COLUMN]
+                check_line(error_worksheet, sheet_name, current_row, jp, tl, edit, qa)
                 current_row += 1
 
     error_workbook.save("errors_and_warnings.xlsx")
