@@ -1,14 +1,15 @@
 import openpyxl
 from openpyxl.utils.cell import column_index_from_string
 
+from os import listdir as ls
+from os.path import exists, join
+
 from checks import CHECKS
 
 ### There'd better be at least one file here. If you have multiple scripts,
 ### you can add as many as you have. If you put a simple filename here,
 ### the file needs to be in the same folder as the python script. Alternatively,
 ### you can use the full file path here, like "C:\scripts\blah.xlsx"
-NAMES = ["common.en.xlsx",
-         ]
 SHEETS_TO_SKIP = []
 
 # column_index_from_string is 1-indexed, so we need to subtract 1 from the result
@@ -66,8 +67,15 @@ def main():
     error_worksheet = error_workbook.active
     format_error_sheet(error_worksheet)
 
-    for excel_file_name in NAMES:
-        workbook = openpyxl.load_workbook(filename = excel_file_name)
+    if not exists('sheets'):
+        print('Could not find `sheets` folder. Is the program being run from the correct folder?')
+    
+    for filename in ls('sheets'):
+        # Ignore hidden files
+        if filename.startswith('.'):
+            continue
+        
+        workbook = openpyxl.load_workbook(join('sheets', filename))
         for sheet_name in workbook.sheetnames:
             if sheet_name in SHEETS_TO_SKIP:
                 continue
