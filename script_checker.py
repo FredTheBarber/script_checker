@@ -66,14 +66,12 @@ def main():
             if sheet_name in SHEETS_TO_SKIP:
                 continue
             sheet = workbook[sheet_name]
-            current_row = MINROW
-            for row in sheet.iter_rows(min_row=MINROW, values_only=True):
+            for idx, row in enumerate(sheet.iter_rows(min_row=MINROW, values_only=True)):
                 jp = row[JP_COLUMN]
                 tl = row[TL_COLUMN]
                 edit = row[EDIT_COLUMN]
                 qa = row[QA_COLUMN]
-                check_line(error_worksheet, sheet_name, current_row, jp, tl, edit, qa)
-                current_row += 1
+                check_line(error_worksheet, sheet_name, idx + MINROW, jp, tl, edit, qa)
 
     error_workbook.save("errors_and_warnings.xlsx")
     print("Done.")
