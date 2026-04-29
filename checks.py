@@ -1,119 +1,135 @@
-##### To implement a check for a row:
-##### - make a new function with the same signature as the other checks:
-#####   def check_whatever(en_line, jp_line):
-##### - have it return nothing if the check succeeds,
-#####   and return an error string for the output sheet if the check fails
-##### - Add it to the CHECKS array in the check_line() function up above
-##### - Implement a test for it in test_checks.py, and be sure to run the tests
+from collections.abc import Callable
+from functools import wraps
 
-def check_banned_characters(en_line, jp_line):
-    banned_characters = ['’', '‘', '“', '”', '…', '&']
-    error = ""
-    for banned_character in banned_characters:
-        if banned_character in en_line:
-            error += "Banned character " + banned_character + ".\n"
+### Don't touch unless you know exactly what you're doing
+class Checker:
+    __checks = {}
+
+    def _check(self):
+        def wrapper(func: Callable[[str, str], None]):
+            self.__checks[func.__name__] = func
+        return wrapper
     
-    if error != "":
-        return error
+    def get_check(self, name):
+        '''Returns the registered check with a given `name`
+        Raises AttributeError if no check was registered with the given name'''
 
-def check_no_ending_newline(en_line, jp_line):
-    banned_terminal_string = "\n"
-    if en_line.endswith(banned_terminal_string):
-        return "Line ends with " + banned_terminal_string
+        return self.__checks[name]
+    
+    def run_checks(self, en, jp):
+        '''Runs all registered checks
+        Returns a list of all error messages from failed checks'''
 
-def check_double_spacing(en_line, jp_line):
-    if "  " in en_line:
-        return "Line contains multiple sequential spaces"
+        errors = [check(en, jp) for check in self.__checks.values()]
+        errors = filter(lambda x: x is not None, errors)
+        return errors
 
-def check_starting_quotation_mark(en_line, jp_line):
-    if jp_line.startswith("「"):
-        if en_line.startswith("\""):
-            return
+##### To implement a check for a row:
+##### - Create a new function with the following signature:
+##### * @checker._check()
+##### * def check_name(en_line: str, jp_line: str):
+#####   Where check_name is a unique string identifying your test
+##### - Have it return nothing if the check succeeds
+#####   and return an error string if the check fails
+##### - The error string will be used in the `errors_and_warnings` output sheet
+##### - Optionally, implement and run unit tests in `test_checks.py`
+
+def new_checker():
+    '''Creates a new Checker instance and populates its internal list of checks'''
+    
+    checker = Checker()
+
+    @checker._check()
+    def banned_characters(en_line: str, jp_line: str):
+        banned_characters =[ '’', '‘', '“', '”', '…', '&']
+        errors = [f'Banned character: [{char}]' for char in banned_characters if char in en_line]     
+        if errors:
+            return '\n'.join(errors)
+
+    @checker._check()
+    def ending_newline(en_line: str, jp_line: str):
+        if en_line.endswith("\n"):
+            return "Line ends with \n"
+
+    @checker._check()
+    def double_spacing(en_line: str, jp_line: str):
+        if "  " in en_line:
+            return 'Line contains multiple sequential spaces'
+
+    @checker._check()
+    def starting_quotation_mark(en_line: str, jp_line: str):
+        if jp_line.startswith("「"):
+            if not en_line.startswith("\""):
+                return "Mismatched quotes: JP line has 「, EN does not start with \""
         else:
-            return "Mismatched quotes: JP line has 「, EN does not start with \""
-    else:
-        if en_line.startswith("\""):
-            return "Mismatched quotes: JP line does not have 「, EN line starts with \""
+            if en_line.startswith("\""):
+                return "Mismatched quotes: JP line does not have 「, EN line starts with \""
 
-def check_ending_quotation_mark(en_line, jp_line):
-    if jp_line.endswith("」"):
-        if en_line.endswith("\""):
-            return
+    @checker._check()
+    def ending_quotation_mark(en_line: str, jp_line: str):
+        if jp_line.endswith("」"):
+            if not en_line.endswith("\""):
+                return "Mismatched quotes: JP line has 」, EN does not end with \""
         else:
-            return "Mismatched quotes: JP line has 」, EN does not end with \""
-    else:
-        if en_line.endswith("\""):
-            return "Mismatched quotes: JP line does not have 」, EN line ends with \""
+            if en_line.endswith("\""):
+                return "Mismatched quotes: JP line does not have 」, EN line ends with \""
 
-def check_adjacent_punctuation(en_line, jp_line):
-    punctuation = ",.;:—?!"
-    for punc in punctuation:
+    @checker._check()
+    def adjacent_punctuation(en_line: str, jp_line: str):
+        punctuation = ",.;:—?!"
+        for punc in punctuation:
+            start = -1
+            while (start := en_line.find(punc, start+1)) != -1:
+                if start >= len(en_line) - 1:
+                    return
+                if en_line[start+1] in punctuation and (en_line[start] != en_line[start + 1] or en_line[start] != '.'):
+                    return "Adjacent punctuation found"
+        
+    ### Because of the way the script is formatted, with a single game line
+    ### split across multiple spreadsheet rows, this check is too noisy
+    ### It also probably needs a smarter implementation, tbh
+    # @checker._check()
+    # def initial_capitalization(en_line: str, jp_line: str):
+    #     for character in en_line:
+    #         if character.isalpha():
+    #             if character.capitalize() == character:
+    #                 return
+    #             else:
+    #                 return "First letter is not capitalized"
+    #         if character.isnumeric():
+    #             return
+
+    @checker._check()
+    def oh_god_not_capitalized(en_line: str, jp_line: str):
+        if "oh God" in en_line or "Oh God" in en_line:
+            return "Don't capitalize 'god' in 'Oh god'"
+
+    @checker._check()
+    def ellipsis_length(en_line: str, jp_line: str):
+        last_location = len(en_line) - 1
         start = 0
         while True:
-            start = en_line.find(punc, start)
-            if start == -1:
-                break
-            if start >= len(en_line) - 1:
+            period_location = en_line.find(".", start)
+            if period_location == -1 or period_location == last_location:
                 return
-            if en_line[start+1] in punctuation and (en_line[start] != en_line[start + 1] or en_line[start] != '.'):
-                return "Adjacent punctuation found"
-            start += 1
-    
-    return
 
-def check_initial_capitalization(en_line, jp_line):
-    for character in en_line:
-        if character.isalpha():
-            if character.capitalize() == character:
-                return
-            else:
-                return "First letter is not capitalized"
-        if character.isnumeric():
-            return
+            if en_line[period_location + 1] != ".":
+                start = period_location + 1
+                continue
+            
+            count = 1
+            
+            while en_line[period_location + 1] == '.':
+                period_location += 1
+                count += 1
+                if period_location == last_location:
+                    if count % 3 != 0:
+                        return "Ellipsis length = " + str(count)
+                    return
 
-def check_oh_god_not_capitalized(en_line, jp_line):
-    if "oh God" in en_line or "Oh God" in en_line:
-        return "Don't capitalize 'god' in 'Oh god'"
+            if count % 3 != 0:
+                return "Ellipsis length = " + str(count)
 
-def check_ellipsis_length(en_line, jp_line):
-    last_location = len(en_line) - 1
-    start = 0
-    while True:
-        period_location = en_line.find(".", start)
-        if period_location == -1 or period_location == last_location:
-            return
-
-        if en_line[period_location + 1] != ".":
             start = period_location + 1
-            continue
-        
-        count = 1
-        
-        while en_line[period_location + 1] == '.':
-            period_location += 1
-            count += 1
-            if period_location == last_location:
-                if count % 3 != 0:
-                    return "Ellipsis length = " + str(count)
-                return
 
-        if count % 3 != 0:
-            return "Ellipsis length = " + str(count)
-
-        start = period_location + 1
-
-
-CHECKS = [check_banned_characters, 
-          check_no_ending_newline, 
-          check_double_spacing, 
-          check_starting_quotation_mark, 
-          check_ending_quotation_mark,
-          check_adjacent_punctuation,
-          check_oh_god_not_capitalized,
-          check_ellipsis_length,
-          ]
-
-### Because of the way the script is formatted, with a single game line
-### split across multiple spreadsheet rows, this check is too noisy
-### It also probably needs a smarter implementation, tbh
-TOO_NOISY_CHECKS = [check_initial_capitalization]
+    return checker

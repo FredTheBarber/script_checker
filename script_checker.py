@@ -4,7 +4,8 @@ from openpyxl.utils.cell import column_index_from_string
 from os import listdir as ls
 from os.path import exists, join
 
-from checks import CHECKS
+from checks import new_checker
+checker = new_checker()
 
 # If any tabs in the workbooks should be skipped, add their names to this list
 SHEETS_TO_SKIP = []
@@ -13,6 +14,7 @@ SHEETS_TO_SKIP = []
 MINROW = 2
 
 # column_index_from_string is 1-indexed, so we subtract 1 from the result
+# If QA_COLUMN is not appliable, set its value to EDIT_COLUMN
 JP_COLUMN = column_index_from_string('B') - 1
 TL_COLUMN = column_index_from_string('D') - 1
 EDIT_COLUMN = column_index_from_string('E') - 1
@@ -31,20 +33,16 @@ def format_error_sheet(error_worksheet):
     error_worksheet.append(header)
 
 
-def check_line(error_worksheet, script_name, script_row, jp, tl, edit, qa):
+def check_line(error_worksheet, script_name, script_row, en, jp):
     if jp is None:
         return
     
     jp = trim_jp_for_BGI_script_commands(jp)
-    
-    en = qa or edit or tl
-    
-    for check in CHECKS:
-        error = check(en, jp)
-        if error is not None:
-            error_row = [script_name, script_row, en, error]
-            error_worksheet.append(error_row)
-
+        
+    errors = checker.run_checks(en, jp)
+    for err in errors:
+        error_row = [script_name, script_row, en, err]
+        error_worksheet.append(error_row)
 
 def main():
     error_workbook = openpyxl.Workbook()
@@ -66,13 +64,12 @@ def main():
             sheet = workbook[sheet_name]
             for idx, row in enumerate(sheet.iter_rows(min_row=MINROW, values_only=True)):
                 jp = row[JP_COLUMN]
-                tl = row[TL_COLUMN]
-                edit = row[EDIT_COLUMN]
-                qa = row[QA_COLUMN]
-                check_line(error_worksheet, sheet_name, idx + MINROW, jp, tl, edit, qa)
+                en = row[QA_COLUMN] or row[EDIT_COLUMN] or row[TL_COLUMN]
+                
+                check_line(error_worksheet, sheet_name, idx + MINROW, en, jp)
 
     error_workbook.save("errors_and_warnings.xlsx")
     print("Done.")
 
-
-main()
+if __name__ == '__main__':
+    main()
